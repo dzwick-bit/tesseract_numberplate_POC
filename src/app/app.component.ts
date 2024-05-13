@@ -6,6 +6,7 @@ import Filter2D from './Filter2D';
 import {compareNumbers} from '@angular/compiler-cli/src/diagnostics/typescript_version';
 import findCorners from './HarrisCorner';
 import {Rectangle, RectFit} from './RectFit';
+import {RectFitV2} from './RectFitV2';
 
 @Component({
   selector: 'app-root',
@@ -47,9 +48,9 @@ export class AppComponent {
         this.multipleWebcamsAvailable = mediaDevices && mediaDevices.length > 1;
         setInterval(() => {
           if (this.ocrDone) {
-            //this.triggerSnapshot()
+            this.triggerSnapshot()
           }
-        }, 2000);
+        }, 250);
       });
   }
 
@@ -91,7 +92,8 @@ export class AppComponent {
     //await this.preprocessDemo();
 
     //await this.detectRectDemo();
-    await this.findPointsByFilter(this.webcamImage.imageData);
+    await this.detectRectDemoV2();
+    //await this.findPointsByFilter(this.webcamImage.imageData);
 
     this.ocrDone = true;
   }
@@ -104,6 +106,16 @@ export class AppComponent {
     console.log('detectRectDemo execution time ' + (Date.now() - start) + 'ms');
     this.ocrDone = true;
   }
+
+  private async detectRectDemoV2() {
+    this.ocrDone = false;
+    const start = Date.now();
+    const rects = await this.findRectsV2(this.webcamImage.imageData);
+    await this.findNumberplates(this.webcamImage.imageData, rects);
+    console.log('detectRectDemo execution time ' + (Date.now() - start) + 'ms');
+    this.ocrDone = true;
+  }
+
 
   private async preprocessDemo() {
     const processedImages = await this.preprocessImageData(this.webcamImage.imageData);
@@ -223,6 +235,46 @@ export class AppComponent {
     const rects = fitter.fitBestRectsFromPoints(points, imageData.data.length);
     console.log(rects);
     await this.drawRects(imageData, 4, 'rects', rects);
+
+    return rects;
+  }
+  private async findRectsV2(imageData: ImageData) {
+    const w = imageData.width;
+    const h = imageData.height;
+    const copy = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+
+    const k1: number[] = [// laplacian
+      0, -1, 0,
+      -1, 4, -1,
+      0, -1, 0];
+
+    const k: number[] = [// laplacian
+      0, 0, -1, 0, 0,
+      0, -1, -2, -1, 0,
+      -1, -2, 16, -2, -1,
+      0, -1, -2, -1, 0,
+      0, 0, -1, 0, 0];
+    const filtered = new Filter2D(copy, w, h);
+
+    const laplace = filtered.applyKernel(k);
+
+    const hysteresis = filtered.applyTrackingHysteresis(30);
+    const laplace2 = filtered.applyKernel(k1);
+    const hysteresis2 = filtered.applyTrackingHysteresis(60);
+    //await this.checkpoint(hysteresis, 1, 'hysteresis');
+
+    const fitter = new RectFitV2();
+    const {besthLines, bestvLines} = fitter.fitLinesByRotation(hysteresis, 20);
+    //console.log({besthLines, bestvLines});
+    //await this.drawLinesV2(imageData, 2, 'lines', besthLines, bestvLines);
+
+    const points = fitter.fitPointsByIntersection(besthLines, bestvLines, imageData.width, imageData.height);
+    //console.log(points);
+    //await this.drawPoints(imageData, 3, 'points', points);
+
+    const rects = fitter.fitBestRectsFromPoints(points, imageData.data.length);
+    //console.log(rects);
+    //await this.drawRects(imageData, 4, 'rects', rects);
 
     return rects;
   }
@@ -419,6 +471,49 @@ export class AppComponent {
     }
   }
 
+  private async drawLinesV2(imageData: ImageData, position: number, name: string,
+                          besthLines: {  x1: number, y1: number, x2: number, y2: number, highscore: number }[],
+                          bestvLines: {  x1: number, y1: number, x2: number, y2: number, highscore: number }[]
+  ) {
+    const w = imageData.width;
+    const h = imageData.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    let ctx = canvas.getContext('2d');
+    ctx.putImageData(imageData, 0, 0);
+    ctx.beginPath();
+    besthLines.forEach(({x1, x2,y1,y2}) => {
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+    });
+    bestvLines.forEach(({x1, x2,y1,y2}) => {
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+    });
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgb(255,0,221)';
+    ctx.stroke();
+    let url = canvas.toDataURL();
+    switch (position) {
+      case 1:
+        this.preprocessImage1 = {url, text: name};
+        break;
+      case 2:
+        this.preprocessImage2 = {url, text: name};
+        break;
+      case 3:
+        this.preprocessImage3 = {url, text: name};
+        break;
+      case 4:
+        this.preprocessImage4 = {url, text: name};
+        break;
+      case 5:
+        this.preprocessImage5 = {url, text: name};
+        break;
+
+    }
+  }
   private async drawPoints(imageData: ImageData, position: number, name: string,
                            points: { x: number; y: number; }[]
   ) {
@@ -430,10 +525,12 @@ export class AppComponent {
     let ctx = canvas.getContext('2d');
     ctx.putImageData(imageData, 0, 0);
     ctx.beginPath();
+    try{
     points.forEach(({x, y}) => {
       ctx.moveTo(x, y);
       ctx.lineTo(x + 1, y + 1);
     });
+    } catch (e){}
     ctx.lineWidth = 5;
     ctx.strokeStyle = 'rgb(218,173,4)';
     ctx.stroke();

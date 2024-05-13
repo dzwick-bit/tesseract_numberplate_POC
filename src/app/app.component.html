@@ -20,12 +20,12 @@
   </div>
 
 <div class="snapshot" *ngIf="ocrDone" >
+  <div class="pair"><img [src]="preprocessImage5.url" width="60%"/><a>{{preprocessImage5.text}}</a></div>
   <img [src]="webcamImage.imageAsDataUrl" width="30%"/>
   <div class="pair"><img [src]="preprocessImage1.url" width="30%"/><a>{{preprocessImage1.text}}</a></div>
   <div class="pair"><img [src]="preprocessImage2.url" width="30%"/><a>{{preprocessImage2.text}}</a></div>
   <div class="pair"><img [src]="preprocessImage3.url" width="30%"/><a>{{preprocessImage3.text}}</a></div>
   <div class="pair"><img [src]="preprocessImage4.url" width="30%"/><a>{{preprocessImage4.text}}</a></div>
-  <div class="pair"><img [src]="preprocessImage5.url" width="60%"/><a>{{preprocessImage5.text}}</a></div>
 </div>
 
 </div>
