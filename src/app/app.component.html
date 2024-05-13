@@ -3,9 +3,29 @@
   <h1>
     Welcome to {{ title }}!
   </h1>
-  <img src="https://tesseract.projectnaptha.com/img/eng_bw.png" width="50%" />
-  <h2>Result: </h2>
-  <p>
-    {{ ocrResult }}
-  </p>
+
+  <div>
+    <webcam [height]="200" [width]="200" [trigger]="triggerObservable" (imageCapture)="handleImage($event)" *ngIf="showWebcam"
+            [allowCameraSwitch]="allowCameraSwitch" [switchCamera]="nextWebcamObservable"
+            [videoOptions]="videoOptions"
+            [imageQuality]="1"
+            (cameraSwitched)="cameraWasSwitched($event)"
+            (initError)="handleInitError($event)"
+            mirrorImage="never"
+            captureImageData="true"
+    ></webcam>
+    <br/>
+    <button class="actionBtn" (click)="triggerSnapshot();">Take A Snapshot</button>
+    <button class="actionBtn" (click)="toggleWebcam();">Toggle Webcam</button>
+  </div>
+
+<div class="snapshot" *ngIf="ocrDone" >
+  <img [src]="webcamImage.imageAsDataUrl" width="30%"/>
+  <div class="pair"><img [src]="preprocessImage1.url" width="30%"/><a>{{preprocessImage1.text}}</a></div>
+  <div class="pair"><img [src]="preprocessImage2.url" width="30%"/><a>{{preprocessImage2.text}}</a></div>
+  <div class="pair"><img [src]="preprocessImage3.url" width="30%"/><a>{{preprocessImage3.text}}</a></div>
+  <div class="pair"><img [src]="preprocessImage4.url" width="30%"/><a>{{preprocessImage4.text}}</a></div>
+  <div class="pair"><img [src]="preprocessImage5.url" width="60%"/><a>{{preprocessImage5.text}}</a></div>
+</div>
+
 </div>
